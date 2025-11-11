@@ -320,6 +320,37 @@
             `).join('');
         }
 
+        // Format text content for better readability
+        function formatContent(text) {
+            // Split into sentences (roughly)
+            let formatted = text;
+            
+            // Add line breaks after periods followed by capital letters (likely new sentences)
+            formatted = formatted.replace(/\. ([A-Z])/g, '.\n\n$1');
+            
+            // Add line breaks after common recipe section markers
+            formatted = formatted.replace(/(Ingredients|Directions|Instructions|Method|Steps|Preparation|Notes):/gi, '\n\n$1:\n');
+            
+            // Break very long paragraphs (every ~500 chars at a sentence boundary)
+            const sentences = formatted.split(/(?<=[.!?])\s+/);
+            let paragraphs = [];
+            let currentPara = '';
+            
+            sentences.forEach(sentence => {
+                if (currentPara.length > 500 && sentence.length > 0) {
+                    paragraphs.push(currentPara.trim());
+                    currentPara = sentence;
+                } else {
+                    currentPara += (currentPara ? ' ' : '') + sentence;
+                }
+            });
+            if (currentPara) {
+                paragraphs.push(currentPara.trim());
+            }
+            
+            return paragraphs.join('\n\n');
+        }
+
         // Show recipe in modal
         function showRecipe(id) {
             const recipe = recipes.find(r => r.id === id);
@@ -330,7 +361,11 @@
                 <span class="badge">${recipe.type}</span>
                 <span>${recipe.path}</span>
             `;
-            document.getElementById('modalContent').textContent = recipe.content;
+            
+            const contentDiv = document.getElementById('modalContent');
+            contentDiv.textContent = formatContent(recipe.content);
+            contentDiv.className = 'recipe-content formatted';
+            
             document.getElementById('modal').style.display = 'block';
             document.body.style.overflow = 'hidden';
         }
