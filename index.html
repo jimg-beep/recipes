@@ -171,7 +171,7 @@
                 type="text" 
                 class="search-input" 
                 id="searchInput" 
-                placeholder="Search recipes by ingredient, dish name, or keyword..."
+                placeholder="Search: chicken, beans OR rice, pasta -tomato, chicken AND garlic..."
                 autocomplete="off"
             >
             <div class="stats" id="stats"></div>
@@ -204,23 +204,68 @@
             stats.textContent = `${recipes.length} recipes available`;
         }
 
-        // Search recipes
+        // Search recipes with Google-style operators
         function searchRecipes(query) {
             if (!query.trim()) {
                 return recipes;
             }
 
-            const terms = query.toLowerCase().split(/\s+/);
+            const lowerQuery = query.toLowerCase();
+            
+            // Check if query contains OR operator
+            const hasOr = lowerQuery.includes(' or ');
+            
+            // Split by OR first if present
+            let orGroups = hasOr ? lowerQuery.split(/\s+or\s+/i) : [lowerQuery];
             
             return recipes.filter(recipe => {
                 const searchText = (recipe.filename + ' ' + recipe.content).toLowerCase();
-                return terms.every(term => searchText.includes(term));
+                
+                // Process each OR group
+                return orGroups.some(group => {
+                    // Split group into terms (handles AND and exclusions)
+                    const terms = group.trim().split(/\s+/);
+                    
+                    // Separate include, exclude, and AND terms
+                    const includeTerms = [];
+                    const excludeTerms = [];
+                    
+                    terms.forEach(term => {
+                        if (term.startsWith('-')) {
+                            // Exclusion term (e.g., -corn)
+                            const excludeTerm = term.substring(1);
+                            if (excludeTerm) excludeTerms.push(excludeTerm);
+                        } else if (term.toLowerCase() !== 'and') {
+                            // Include term (skip the word "and" itself)
+                            includeTerms.push(term);
+                        }
+                    });
+                    
+                    // Check if all include terms are present
+                    const hasAllIncludes = includeTerms.every(term => 
+                        searchText.includes(term)
+                    );
+                    
+                    // Check if any exclude terms are present
+                    const hasAnyExcludes = excludeTerms.some(term => 
+                        searchText.includes(term)
+                    );
+                    
+                    // Match if has all includes AND no excludes
+                    return hasAllIncludes && !hasAnyExcludes;
+                });
             }).sort((a, b) => {
                 // Sort by relevance (number of term matches in filename)
-                const aMatches = terms.filter(term => 
+                const allTerms = orGroups.flatMap(group => 
+                    group.split(/\s+/).filter(t => 
+                        !t.startsWith('-') && t.toLowerCase() !== 'and' && t.toLowerCase() !== 'or'
+                    )
+                );
+                
+                const aMatches = allTerms.filter(term => 
                     a.filename.toLowerCase().includes(term)
                 ).length;
-                const bMatches = terms.filter(term => 
+                const bMatches = allTerms.filter(term => 
                     b.filename.toLowerCase().includes(term)
                 ).length;
                 return bMatches - aMatches;
