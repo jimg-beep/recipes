@@ -322,33 +322,27 @@
 
         // Format text content for better readability
         function formatContent(text) {
-            // Split into sentences (roughly)
             let formatted = text;
             
-            // Add line breaks after periods followed by capital letters (likely new sentences)
-            formatted = formatted.replace(/\. ([A-Z])/g, '.\n\n$1');
+            // Add breaks after numbered steps (common in recipes)
+            formatted = formatted.replace(/(\d+\.)/g, '\n$1');
             
-            // Add line breaks after common recipe section markers
-            formatted = formatted.replace(/(Ingredients|Directions|Instructions|Method|Steps|Preparation|Notes):/gi, '\n\n$1:\n');
+            // Add spacing around common section headers
+            formatted = formatted.replace(/(Ingredients|Directions|Instructions|Method|Steps|Preparation|Notes|Nutrition Information|Prep Time|Total Time|Servings):/gi, '\n\n$1:\n');
             
-            // Break very long paragraphs (every ~500 chars at a sentence boundary)
-            const sentences = formatted.split(/(?<=[.!?])\s+/);
-            let paragraphs = [];
-            let currentPara = '';
+            // Add breaks after periods followed by capital letters
+            formatted = formatted.replace(/\. ([A-Z][a-z])/g, '.\n\n$1');
             
-            sentences.forEach(sentence => {
-                if (currentPara.length > 500 && sentence.length > 0) {
-                    paragraphs.push(currentPara.trim());
-                    currentPara = sentence;
-                } else {
-                    currentPara += (currentPara ? ' ' : '') + sentence;
-                }
-            });
-            if (currentPara) {
-                paragraphs.push(currentPara.trim());
-            }
+            // Add breaks after measurement lines (like "1/2 cup milk")
+            formatted = formatted.replace(/([a-z])\s+(\d+\/?\d*\s+(cup|tablespoon|teaspoon|pound|ounce|lb|oz|tsp|tbsp))/gi, '$1\n$2');
             
-            return paragraphs.join('\n\n');
+            // Clean up multiple consecutive newlines
+            formatted = formatted.replace(/\n{3,}/g, '\n\n');
+            
+            // Trim each line
+            formatted = formatted.split('\n').map(line => line.trim()).join('\n');
+            
+            return formatted;
         }
 
         // Show recipe in modal
