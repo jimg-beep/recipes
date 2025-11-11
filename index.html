@@ -81,6 +81,9 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             transition: transform 0.2s, box-shadow 0.2s;
             cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
         }
 
         .recipe-card:hover {
@@ -108,6 +111,7 @@
             gap: 15px;
             font-size: 0.85em;
             color: #999;
+            align-items: center;
         }
 
         .badge {
@@ -117,6 +121,12 @@
             border-radius: 12px;
             font-size: 0.8em;
             text-transform: uppercase;
+        }
+
+        .open-icon {
+            margin-left: auto;
+            color: #667eea;
+            font-size: 1.2em;
         }
 
         .no-results {
@@ -133,59 +143,6 @@
             font-size: 1.2em;
         }
 
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 1000;
-            overflow-y: auto;
-        }
-
-        .modal-content {
-            background: white;
-            margin: 50px auto;
-            padding: 30px;
-            max-width: 800px;
-            border-radius: 12px;
-            position: relative;
-        }
-
-        .close-btn {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            font-size: 2em;
-            cursor: pointer;
-            color: #999;
-            background: none;
-            border: none;
-        }
-
-        .close-btn:hover {
-            color: #333;
-        }
-
-        .recipe-content {
-            margin-top: 20px;
-            line-height: 1.8;
-            color: #333;
-            word-wrap: break-word;
-            max-height: 70vh;
-            overflow-y: auto;
-        }
-
-        .recipe-content p {
-            margin-bottom: 1em;
-        }
-
-        .recipe-content.formatted {
-            white-space: pre-wrap;
-        }
-
         @media (max-width: 768px) {
             h1 {
                 font-size: 2em;
@@ -193,11 +150,6 @@
             
             .results {
                 grid-template-columns: 1fr;
-            }
-
-            .modal-content {
-                margin: 20px;
-                padding: 20px;
             }
         }
 
@@ -211,7 +163,7 @@
     <div class="container">
         <header>
             <h1>🍳 My Recipe Collection</h1>
-            <p class="subtitle">Search through your favorite recipes</p>
+            <p class="subtitle">Search and view your favorite recipes</p>
         </header>
 
         <div class="search-box">
@@ -226,15 +178,6 @@
         </div>
 
         <div id="results" class="results"></div>
-    </div>
-
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <button class="close-btn" onclick="closeModal()">&times;</button>
-            <h2 class="recipe-title" id="modalTitle"></h2>
-            <div class="recipe-meta" id="modalMeta"></div>
-            <div class="recipe-content" id="modalContent"></div>
-        </div>
     </div>
 
     <script>
@@ -309,80 +252,17 @@
             }
 
             resultsDiv.innerHTML = recipesToDisplay.map(recipe => `
-                <div class="recipe-card" onclick="showRecipe(${recipe.id})">
+                <a href="${recipe.file_path}" target="_blank" class="recipe-card">
                     <div class="recipe-title">${highlightText(recipe.filename, currentSearch)}</div>
                     <div class="recipe-preview">${recipe.preview}</div>
                     <div class="recipe-meta">
                         <span class="badge">${recipe.type}</span>
                         <span>${(recipe.size / 1024).toFixed(1)} KB</span>
+                        <span class="open-icon">↗</span>
                     </div>
-                </div>
+                </a>
             `).join('');
         }
-
-        // Format text content for better readability
-        function formatContent(text) {
-            let formatted = text;
-            
-            // Add breaks after numbered steps (common in recipes)
-            formatted = formatted.replace(/(\d+\.)/g, '\n$1');
-            
-            // Add spacing around common section headers
-            formatted = formatted.replace(/(Ingredients|Directions|Instructions|Method|Steps|Preparation|Notes|Nutrition Information|Prep Time|Total Time|Servings):/gi, '\n\n$1:\n');
-            
-            // Add breaks after periods followed by capital letters
-            formatted = formatted.replace(/\. ([A-Z][a-z])/g, '.\n\n$1');
-            
-            // Add breaks after measurement lines (like "1/2 cup milk")
-            formatted = formatted.replace(/([a-z])\s+(\d+\/?\d*\s+(cup|tablespoon|teaspoon|pound|ounce|lb|oz|tsp|tbsp))/gi, '$1\n$2');
-            
-            // Clean up multiple consecutive newlines
-            formatted = formatted.replace(/\n{3,}/g, '\n\n');
-            
-            // Trim each line
-            formatted = formatted.split('\n').map(line => line.trim()).join('\n');
-            
-            return formatted;
-        }
-
-        // Show recipe in modal
-        function showRecipe(id) {
-            const recipe = recipes.find(r => r.id === id);
-            if (!recipe) return;
-
-            document.getElementById('modalTitle').textContent = recipe.filename;
-            document.getElementById('modalMeta').innerHTML = `
-                <span class="badge">${recipe.type}</span>
-                <span>${recipe.path}</span>
-            `;
-            
-            const contentDiv = document.getElementById('modalContent');
-            contentDiv.textContent = formatContent(recipe.content);
-            contentDiv.className = 'recipe-content formatted';
-            
-            document.getElementById('modal').style.display = 'block';
-            document.body.style.overflow = 'hidden';
-        }
-
-        // Close modal
-        function closeModal() {
-            document.getElementById('modal').style.display = 'none';
-            document.body.style.overflow = 'auto';
-        }
-
-        // Close modal on background click
-        document.getElementById('modal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
-        });
-
-        // Close modal on Escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeModal();
-            }
-        });
 
         // Search input handler with debouncing
         let searchTimeout;
