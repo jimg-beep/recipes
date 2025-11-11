@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Recipe Collection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .search-box {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.1em;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+        }
+
+        .stats {
+            margin-top: 15px;
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .recipe-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .recipe-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .recipe-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            word-break: break-word;
+        }
+
+        .recipe-preview {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+        }
+
+        .recipe-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85em;
+            color: #999;
+        }
+
+        .badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            text-transform: uppercase;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 30px;
+            max-width: 800px;
+            border-radius: 12px;
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 2em;
+            cursor: pointer;
+            color: #999;
+            background: none;
+            border: none;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .recipe-content {
+            margin-top: 20px;
+            line-height: 1.8;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+            
+            .results {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                margin: 20px;
+                padding: 20px;
+            }
+        }
+
+        .highlight {
+            background: yellow;
+            padding: 2px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍳 My Recipe Collection</h1>
+            <p class="subtitle">Search through your favorite recipes</p>
+        </header>
+
+        <div class="search-box">
+            <input 
+                type="text" 
+                class="search-input" 
+                id="searchInput" 
+                placeholder="Search recipes by ingredient, dish name, or keyword..."
+                autocomplete="off"
+            >
+            <div class="stats" id="stats"></div>
+        </div>
+
+        <div id="results" class="results"></div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+            <h2 class="recipe-title" id="modalTitle"></h2>
+            <div class="recipe-meta" id="modalMeta"></div>
+            <div class="recipe-content" id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let recipes = [];
+        let currentSearch = '';
+
+        // Load recipes index
+        async function loadRecipes() {
+            try {
+                const response = await fetch('recipes_index.json');
+                recipes = await response.json();
+                displayStats();
+                displayRecipes(recipes);
+            } catch (error) {
+                document.getElementById('results').innerHTML = 
+                    '<div class="no-results">Error loading recipes. Make sure recipes_index.json is in the same directory.</div>';
+                console.error('Error loading recipes:', error);
+            }
+        }
+
+        // Display statistics
+        function displayStats() {
+            const stats = document.getElementById('stats');
+            stats.textContent = `${recipes.length} recipes available`;
+        }
+
+        // Search recipes
+        function searchRecipes(query) {
+            if (!query.trim()) {
+                return recipes;
+            }
+
+            const terms = query.toLowerCase().split(/\s+/);
+            
+            return recipes.filter(recipe => {
+                const searchText = (recipe.filename + ' ' + recipe.content).toLowerCase();
+                return terms.every(term => searchText.includes(term));
+            }).sort((a, b) => {
+                // Sort by relevance (number of term matches in filename)
+                const aMatches = terms.filter(term => 
+                    a.filename.toLowerCase().includes(term)
+                ).length;
+                const bMatches = terms.filter(term => 
+                    b.filename.toLowerCase().includes(term)
+                ).length;
+                return bMatches - aMatches;
+            });
+        }
+
+        // Highlight search terms
+        function highlightText(text, query) {
+            if (!query.trim()) return text;
+            
+            const terms = query.split(/\s+/);
+            let highlighted = text;
+            
+            terms.forEach(term => {
+                const regex = new RegExp(`(${term})`, 'gi');
+                highlighted = highlighted.replace(regex, '<span class="highlight">$1</span>');
+            });
+            
+            return highlighted;
+        }
+
+        // Display recipes
+        function displayRecipes(recipesToDisplay) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (recipesToDisplay.length === 0) {
+                resultsDiv.innerHTML = '<div class="no-results">No recipes found. Try a different search term.</div>';
+                return;
+            }
+
+            resultsDiv.innerHTML = recipesToDisplay.map(recipe => `
+                <div class="recipe-card" onclick="showRecipe(${recipe.id})">
+                    <div class="recipe-title">${highlightText(recipe.filename, currentSearch)}</div>
+                    <div class="recipe-preview">${recipe.preview}</div>
+                    <div class="recipe-meta">
+                        <span class="badge">${recipe.type}</span>
+                        <span>${(recipe.size / 1024).toFixed(1)} KB</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Show recipe in modal
+        function showRecipe(id) {
+            const recipe = recipes.find(r => r.id === id);
+            if (!recipe) return;
+
+            document.getElementById('modalTitle').textContent = recipe.filename;
+            document.getElementById('modalMeta').innerHTML = `
+                <span class="badge">${recipe.type}</span>
+                <span>${recipe.path}</span>
+            `;
+            document.getElementById('modalContent').textContent = recipe.content;
+            document.getElementById('modal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close modal on background click
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Search input handler with debouncing
+        let searchTimeout;
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                currentSearch = e.target.value;
+                const results = searchRecipes(currentSearch);
+                displayRecipes(results);
+                
+                const stats = document.getElementById('stats');
+                if (currentSearch.trim()) {
+                    stats.textContent = `Found ${results.length} of ${recipes.length} recipes`;
+                } else {
+                    stats.textContent = `${recipes.length} recipes available`;
+                }
+            }, 300);
+        });
+
+        // Load recipes on page load
+        loadRecipes();
+    </script>
+</body>
+</html>
